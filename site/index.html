@@ -3,10 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Niederschlag Allgäu</title>
+<title>Niederschlagssumme</title>
 <link rel="stylesheet" href="vendor/leaflet/leaflet.min.css">
 <style>
-  :root { --bg:#fff; --fg:#1d2330; --muted:#667085; --line:#d9dde5; --accent:#1f5fbf; --panel:rgba(255,255,255,.94); }
+  :root { --bg:#fff; --fg:#1d2330; --muted:#667085; --line:#d9dde5; --accent:#1f5fbf; --panel:rgba(255,255,255,.94);
+    --legend-h:64px; }
   @media (prefers-color-scheme: dark) {
     :root { --bg:#12151b; --fg:#e7eaf0; --muted:#98a2b3; --line:#2c3340; --accent:#6aa3ff; --panel:rgba(22,26,33,.94); }
   }
@@ -15,43 +16,58 @@
   #map { position:absolute; inset:0; }
   .panel { position:absolute; z-index:1000; background:var(--panel); border:1px solid var(--line);
     border-radius:10px; box-shadow:0 4px 18px rgba(0,0,0,.15); padding:12px 14px; }
-  #ctrl { top:12px; left:56px; width:370px; max-width:calc(100% - 90px); box-sizing:border-box; }
+  #ctrl { top:12px; left:56px; width:370px; max-width:calc(100% - 90px); box-sizing:border-box; padding-right:44px; }
   h1 { font-size:15px; margin:0 0 10px; }
   .row { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
   button { font:inherit; border:1px solid var(--line); background:transparent; color:var(--fg);
     padding:5px 11px; border-radius:7px; cursor:pointer; }
   button.on { background:var(--accent); border-color:var(--accent); color:#fff; }
-  button:disabled { opacity:.5; cursor:wait; }
+  button, input { touch-action:manipulation; }
   .dur { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
   .dur input { flex:1; accent-color:var(--accent); }
   .dur output { font-weight:650; font-variant-numeric:tabular-nums; min-width:62px; text-align:right; }
   .meta { color:var(--muted); font-size:12.5px; margin-top:8px; }
   .meta b { color:var(--fg); font-weight:600; }
-  #legend { bottom:24px; left:50%; transform:translateX(-50%); width:min(780px, calc(100% - 24px));
-    box-sizing:border-box; padding:8px 12px 6px; }
-  #legend { border-width:2px; border-color:var(--scale); transition:border-color .3s; }
-  #legend .title { font-size:12.5px; font-weight:600; margin-bottom:5px; display:flex; align-items:center; gap:8px; }
-  #toast { position:absolute; z-index:1002; top:40%; left:50%; transform:translate(-50%,-50%) scale(.96);
-    background:var(--scale); color:#fff; padding:12px 20px; border-radius:12px; font-weight:650; font-size:15px;
-    text-align:center; box-shadow:0 8px 30px rgba(0,0,0,.3); opacity:0; pointer-events:none;
-    transition:opacity .25s, transform .25s; }
-  #toast.show { opacity:1; transform:translate(-50%,-50%) scale(1); }
+  label { color:var(--muted); font-size:12.5px; display:flex; align-items:center; gap:8px; margin-top:8px; }
+  label input { flex:1; accent-color:var(--accent); }
+  .busy { opacity:.55; transition:opacity .15s; }
+  .info-btn { position:absolute; top:9px; right:9px; width:26px; height:26px; padding:0; border-radius:50%;
+    font:italic 700 15px/1 Georgia, serif; }
 
+  #legend { bottom:24px; left:50%; transform:translateX(-50%); width:min(780px, calc(100% - 24px));
+    box-sizing:border-box; padding:8px 12px 6px; border-width:2px; border-color:var(--scale); transition:border-color .3s; }
+  #legend .title { font-size:12.5px; font-weight:600; margin-bottom:5px; }
   #legend .bar { display:flex; border:1px solid #333; }
   #legend .bar i { flex:1; height:16px; border-right:1px solid #333; }
   #legend .bar i:last-child { border-right:0; }
   #legend .ticks { display:flex; font-size:10.5px; font-variant-numeric:tabular-nums; margin-top:2px; }
   #legend .ticks span { flex:1; margin-left:-2px; }
-  label { color:var(--muted); font-size:12.5px; display:flex; align-items:center; gap:8px; margin-top:8px; }
-  label input { flex:1; accent-color:var(--accent); }
+
+  #locate { right:12px; bottom:calc(24px + var(--legend-h) + 14px); width:44px; height:44px; padding:0;
+    border-radius:50%; display:grid; place-items:center; color:var(--fg); }
+  #locate svg { width:22px; height:22px; }
+  #locate.busy svg { animation:spin 1s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  #toast { position:absolute; z-index:1002; top:40%; left:50%; transform:translate(-50%,-50%) scale(.96);
+    background:var(--scale); color:#fff; padding:12px 20px; border-radius:12px; font-weight:650; font-size:15px;
+    text-align:center; box-shadow:0 8px 30px rgba(0,0,0,.3); opacity:0; pointer-events:none;
+    transition:opacity .25s, transform .25s; max-width:80%; }
+  #toast.show { opacity:1; transform:translate(-50%,-50%) scale(1); }
   #hover { position:absolute; z-index:1001; pointer-events:none; display:none; background:var(--panel);
     border:1px solid var(--line); border-radius:6px; padding:3px 7px; font-weight:600; font-size:12.5px;
     font-variant-numeric:tabular-nums; box-shadow:0 2px 8px rgba(0,0,0,.15); }
-  .far .place-label, .far .place-dot { display:none; }
-  .busy { opacity:.55; transition:opacity .15s; }
-  #ctrl { padding-right:44px; }
-  .info-btn { position:absolute; top:9px; right:9px; width:26px; height:26px; padding:0; border-radius:50%;
-    font:italic 700 15px/1 Georgia, serif; }
+
+  .place-label { font-weight:600; }
+  .pin-label { font-weight:650; font-variant-numeric:tabular-nums; }
+  .leaflet-popup-content { margin:10px 12px; font-size:13.5px; }
+  .pp .val { font-size:16px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .pp .sub { color:#667085; font-size:12px; }
+  .pp .act { display:flex; gap:6px; margin-top:8px; }
+  .pp input { font-size:16px; padding:4px 6px; border:1px solid #c9ced8; border-radius:6px; width:140px; }
+  .pp button { background:#1f5fbf; border-color:#1f5fbf; color:#fff; padding:4px 10px; }
+  .pp button.del { background:transparent; color:#b42318; border-color:#e4b4ae; }
+
   dialog { max-width:min(520px, calc(100% - 32px)); border:1px solid var(--line); border-radius:12px;
     background:var(--bg); color:var(--fg); padding:18px 20px; box-shadow:0 12px 40px rgba(0,0,0,.3); }
   dialog::backdrop { background:rgba(0,0,0,.35); }
@@ -62,9 +78,9 @@
   dialog .ok { text-align:right; margin-top:12px; }
   dialog .ok button { padding:7px 18px; }
   dialog .legal { margin-top:14px; padding-top:10px; border-top:1px solid var(--line); }
-  button, input { touch-action:manipulation; }
-  .pin-label { font-weight:650; font-variant-numeric:tabular-nums; }
+
   @media (max-width: 600px) {
+    :root { --legend-h:52px; }
     #ctrl { left:max(10px, env(safe-area-inset-left)); right:max(10px, env(safe-area-inset-right));
       top:max(10px, env(safe-area-inset-top)); width:auto; max-width:none; padding:10px 12px; }
     h1 { display:none; }
@@ -78,6 +94,7 @@
     #legend .title { font-size:11.5px; }
     #legend .ticks { font-size:9.5px; }
     #legend .ticks span:nth-child(even) { visibility:hidden; }
+    #locate { bottom:calc(max(22px, calc(env(safe-area-inset-bottom) + 18px)) + var(--legend-h) + 14px); }
     #hover { display:none !important; }
   }
 </style>
@@ -88,7 +105,7 @@
 <div id="toast"></div>
 
 <div id="ctrl" class="panel">
-  <h1>Niederschlagssumme · RADOLAN 1 km</h1>
+  <h1>Niederschlagssumme · 🍄🌱</h1>
   <button id="infoBtn" class="info-btn" aria-label="Info, Quellen und rechtliche Hinweise" title="Info &amp; Quellen">i</button>
   <div class="dur">
     <input type="range" id="days" min="1" max="30" step="1" value="7" aria-label="Summendauer in Tagen">
@@ -97,7 +114,7 @@
   <div class="row">
     <button data-days="1">1</button>
     <button data-days="3">3</button>
-    <button data-days="7" class="on">7</button>
+    <button data-days="7">7</button>
     <button data-days="14">14</button>
     <button data-days="30">30</button>
   </div>
@@ -106,6 +123,13 @@
 </div>
 
 <div id="legend" class="panel"></div>
+
+<button id="locate" class="panel" aria-label="Meinen Standort anzeigen" title="Meinen Standort anzeigen">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+    <circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/>
+    <path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3"/>
+  </svg>
+</button>
 
 <dialog id="about">
   <form method="dialog"><button class="close" aria-label="Schließen">×</button></form>
@@ -119,12 +143,22 @@
   <p>Radargestützte Schätzwerte ohne Gewähr. Keine amtliche Messung und kein Angebot des
     Deutschen Wetterdienstes. Lokal können die Werte deutlich von Messungen am Boden abweichen.
     Nicht für sicherheitsrelevante Entscheidungen verwenden.</p>
+  <h3>Bedienung</h3>
+  <ul>
+    <li>Antippen der Karte zeigt den Wert an dieser Stelle; der Punkt lässt sich als eigener Pin speichern.</li>
+    <li>Doppeltippen zoomt hinein, Doppeltippen und Halten mit anschließendem Ziehen zoomt stufenlos.</li>
+    <li>Der Standort-Knopf zentriert die Karte auf deinen Standort.</li>
+  </ul>
+  <p>Einstellungen und eigene Pins werden nur lokal in deinem Browser gespeichert. Dein Standort
+    wird nicht übertragen.</p>
   <h3>Quellen</h3>
   <ul>
     <li>Datenbasis: <a href="https://opendata.dwd.de" target="_blank" rel="noopener">Deutscher Wetterdienst</a>,
       RADOLAN SF; Daten aufsummiert und grafisch aufbereitet.</li>
     <li>Kartenhintergrund: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap-Mitwirkende</a>,
       Kacheln von <a href="https://www.openstreetmap.de" target="_blank" rel="noopener">openstreetmap.de</a> (FOSSGIS e.V.)</li>
+    <li>Gemeindenamen und Einwohnerzahlen: © Statistisches Bundesamt (Destatis), Gemeindeverzeichnis,
+      Stand 31.12.2024, <a href="https://www.govdata.de/dl-de/by-2-0" target="_blank" rel="noopener">dl-de/by-2-0</a></li>
     <li>Kartenbibliothek: <a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a> (BSD-2-Lizenz)</li>
   </ul>
   <p class="legal" id="legalLinks"></p>
@@ -136,6 +170,26 @@
 // ---- Rechtliche Links (Impressum/Datenschutz der eigenen Homepage eintragen) ----
 const IMPRESSUM_URL = '';   // z. B. 'https://www.deinedomain.de/impressum'
 const DATENSCHUTZ_URL = ''; // z. B. 'https://www.deinedomain.de/datenschutz'
+
+// Bei inhaltlichen Änderungen der Seite erhöhen → Info-Fenster erscheint erneut
+const INFO_VERSION = 2;
+const INFO_INTERVAL = 7 * 86400000;  // sonst höchstens einmal pro Woche
+const HOME = { lat: 47.8282, lng: 10.3792, zoom: 10 };  // Startansicht beim ersten Besuch: Untrasried
+
+// ---- Lokale Einstellungen (bleiben bei Updates erhalten; fehlende Felder werden ergänzt) ----
+const STORE_KEY = 'niederschlagssummen';
+const DEFAULTS = { days: 7, opacity: 0.7, view: null, pins: [], infoSeen: 0, infoVersion: 0 };
+const settings = (() => {
+  let s = null;
+  try { s = JSON.parse(localStorage.getItem(STORE_KEY)); } catch (e) {}
+  s = Object.assign({}, DEFAULTS, s && typeof s === 'object' ? s : {});
+  s.days = Math.min(Math.max(Math.round(+s.days) || 7, 1), 30);
+  s.opacity = Math.min(Math.max(+s.opacity || 0.7, 0.2), 1);
+  if (!Array.isArray(s.pins)) s.pins = [];
+  s.pins = s.pins.filter(p => p && isFinite(p.lat) && isFinite(p.lng));
+  return s;
+})();
+function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(settings)); } catch (e) {} }
 
 // ---- RADOLAN-Gitter (900x900, polarstereographisch, 1 km) ----
 const N = 900, NODATA = 0xFFFF;
@@ -153,7 +207,7 @@ function cellIndex(lat, lon) {
 // Langzeit (8–30 Tage): vorgegebene Skala. Kurzzeit (1–7 Tage): feinere Stufen, eigene Farbfamilie.
 const SCALES = {
   long: {
-    name: 'Langzeit-Skala', range: '8–30 Tage', accent: '#d9531e',
+    range: '8–30 Tage', accent: '#d9531e',
     steps: [
       [1,'#4daaf9'],[2,'#1539f5'],[4,'#0000e5'],[6,'#0000bf'],[8,'#cbfdc3'],[12,'#b1fda2'],
       [16,'#94fc7d'],[20,'#7ffc5e'],[28,'#63d840'],[40,'#ffff54'],[60,'#ecd948'],[80,'#e2bc3f'],
@@ -163,7 +217,7 @@ const SCALES = {
     ]
   },
   short: {
-    name: 'Kurzzeit-Skala', range: '1–7 Tage', accent: '#0e8f8a',
+    range: '1–7 Tage', accent: '#0e8f8a',
     steps: [
       [0.1,'#f0f9e8'],[0.5,'#d4eece'],[1,'#b5e2c1'],[2,'#8fd2c4'],[3,'#66c0c8'],[4,'#43a8c8'],
       [5,'#2b8cbe'],[7,'#1f6aa8'],[10,'#1a4a8f'],[15,'#2d2a7a'],[20,'#4b1d78'],[25,'#6d1873'],
@@ -188,12 +242,26 @@ let LUT = SCALES.long.lut, scaleKey = null;
 
 // ---- Karte ----
 const touch = matchMedia('(pointer: coarse)').matches;
-const map = L.map('map', { zoomSnap: 0.5, zoomControl: !touch }).setView([47.86, 10.3], 10);
+const narrow = matchMedia('(max-width: 600px)');
+const view = settings.view || HOME;
+const map = L.map('map', {
+  zoomSnap: touch ? 0 : 0.5, zoomControl: !touch, doubleClickZoom: !touch  // Touch-Gesten siehe unten
+}).setView([view.lat, view.lng], view.zoom);
 L.tileLayer('https://{s}.tile.openstreetmap.de/{z}/{x}/{y}.png', {
   maxZoom: 17,
   attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap-Mitwirkende</a>' +
                ' · Datenbasis: <a href="https://opendata.dwd.de" target="_blank" rel="noopener">Deutscher Wetterdienst</a>'
 }).addTo(map);
+
+let viewTimer;
+map.on('moveend', () => {
+  clearTimeout(viewTimer);
+  viewTimer = setTimeout(() => {
+    const c = map.getCenter();
+    settings.view = { lat: +c.lat.toFixed(5), lng: +c.lng.toFixed(5), zoom: +map.getZoom().toFixed(2) };
+    save();
+  }, 400);
+});
 
 let grid = null;
 
@@ -223,23 +291,42 @@ const RadarLayer = L.GridLayer.extend({
     return tile;
   }
 });
-const radar = new RadarLayer({ opacity: 0.7, zIndex: 5, updateWhenZooming: false }).addTo(map);
-
-// Orte
-const places = { Memmingen:[47.9816,10.1687], Kempten:[47.7267,10.3169], Untrasried:[47.8282,10.3792],
-                 Kaufbeuren:[47.8804,10.6222], 'Bad Grönenbach':[47.8777,10.2215] };
-for (const [n, ll] of Object.entries(places)) {
-  L.circleMarker(ll, { radius:4, color:'#111', weight:1.5, fillColor:'#fff', fillOpacity:1, className:'place-dot' })
-    .bindTooltip(n, { permanent:true, direction:'right', offset:[6,0], className:'place-label' }).addTo(map);
-}
-// Ortsnamen erst ab regionaler Zoomstufe zeigen
-const toggleLabels = () => map.getContainer().classList.toggle('far', map.getZoom() < 9);
-map.on('zoomend', toggleLabels); toggleLabels();
+const radar = new RadarLayer({ opacity: settings.opacity, zIndex: 5, updateWhenZooming: false }).addTo(map);
 
 const mm = v => v == null ? '–' : (v / 10).toFixed(1).replace('.', ',') + ' mm';
 const valueAt = (lat, lon) => { const k = cellIndex(lat, lon); return (k < 0 || !grid || grid[k] === NODATA) ? null : grid[k]; };
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const daysText = d => d + (d === 1 ? ' Tag' : ' Tage');
 
-// Mauszeiger-Wert
+const ctrl = document.getElementById('ctrl'), legend = document.getElementById('legend');
+const locBtn = document.getElementById('locate');
+
+// ---- Orts-Etiketten: die 5 größten Gemeinden im sichtbaren Ausschnitt ----
+let places = [];  // [Name, Breite, Länge, Einwohner], absteigend nach Einwohnern
+const placeLayer = L.layerGroup().addTo(map);
+function updatePlaces() {
+  placeLayer.clearLayers();
+  const size = map.getSize(), mapRect = map.getContainer().getBoundingClientRect();
+  // Bereiche, die von Bedienfeld, Legende und Standort-Knopf verdeckt sind (plus Platz fürs Etikett)
+  const covered = [ctrl, legend, locBtn].map(el => {
+    const r = el.getBoundingClientRect();
+    return [r.left - mapRect.left - 140, r.top - mapRect.top - 16, r.right - mapRect.left + 8, r.bottom - mapRect.top + 12];
+  });
+  let n = 0;
+  for (const [name, lat, lng] of places) {
+    const pt = map.latLngToContainerPoint([lat, lng]);
+    if (pt.x < 8 || pt.y < 12 || pt.x > size.x - 130 || pt.y > size.y - 12) continue;
+    if (covered.some(([l, t, r, b]) => pt.x > l && pt.x < r && pt.y > t && pt.y < b)) continue;
+    L.circleMarker([lat, lng], { radius:4, color:'#111', weight:1.5, fillColor:'#fff', fillOpacity:1, interactive:false })
+      .bindTooltip(esc(name), { permanent:true, direction:'right', offset:[6,0], className:'place-label' })
+      .addTo(placeLayer);
+    if (++n === 5) break;
+  }
+}
+map.on('moveend', updatePlaces);
+fetch('places.json').then(r => r.json()).then(p => { places = p; updatePlaces(); }).catch(() => {});
+
+// ---- Wert unter dem Mauszeiger (Desktop) ----
 const hover = document.getElementById('hover');
 map.on('mousemove', e => {
   if (!grid) return;
@@ -250,19 +337,128 @@ map.on('mousemove', e => {
 });
 map.on('mouseout', () => hover.style.display = 'none');
 
-// Antippen (Handy) bzw. Klicken: Wert an dieser Stelle anheften, erneutes Antippen entfernt ihn
-let pin = null;
-function updatePin() {
-  if (!pin) return;
-  const ll = pin.getLatLng();
-  pin.setTooltipContent(mm(valueAt(ll.lat, ll.lng)));
+// ---- Pins ----
+const pinLayer = L.layerGroup().addTo(map);
+let tempPin = null, tapTimer = null, suppressClickUntil = 0;
+
+function popupEl(html) { const d = document.createElement('div'); d.className = 'pp'; d.innerHTML = html; return d; }
+
+function openTempPin(latlng) {
+  const v = valueAt(latlng.lat, latlng.lng);
+  const el = popupEl(
+    `<div class="val">${mm(v)}</div><div class="sub">Summe ${daysText(+slider.value)}</div>` +
+    `<div class="act"><input maxlength="40" placeholder="Name" aria-label="Name für Pin"><button>Speichern</button></div>`);
+  const input = el.querySelector('input');
+  const doSave = () => {
+    settings.pins.push({ id: Date.now().toString(36), name: input.value.trim() || 'Pin',
+      lat: +latlng.lat.toFixed(5), lng: +latlng.lng.toFixed(5) });
+    save(); removeTempPin(); renderPins();
+  };
+  el.querySelector('button').onclick = doSave;
+  input.onkeydown = e => { if (e.key === 'Enter') doSave(); };
+  tempPin = L.circleMarker(latlng, { radius:6, color:'#111', weight:2, fillColor:'#fff', fillOpacity:1,
+    bubblingMouseEvents:false }).addTo(map);
+  tempPin.bindPopup(el, { offset:[0,-4], autoPanPaddingTopLeft:[10, ctrl.offsetHeight + 20] }).openPopup();
+  tempPin.on('popupclose', () => setTimeout(removeTempPin, 0));
 }
+function removeTempPin() { if (tempPin) { const p = tempPin; tempPin = null; map.removeLayer(p); } }
+
+function renderPins() {
+  pinLayer.clearLayers();
+  for (const p of settings.pins) {
+    const m = L.circleMarker([p.lat, p.lng], { radius:7, color:'#fff', weight:2, fillColor:'#d9531e', fillOpacity:1,
+      bubblingMouseEvents:false });
+    m.bindTooltip('', { permanent:true, direction:'top', offset:[0,-8], className:'pin-label' });
+    m.bindPopup(() => {
+      const el = popupEl(`<div><b>${esc(p.name)}</b></div><div class="val">${mm(valueAt(p.lat, p.lng))}</div>` +
+        `<div class="sub">Summe ${daysText(+slider.value)}</div><div class="act"><button class="del">Pin löschen</button></div>`);
+      el.querySelector('.del').onclick = () => {
+        if (!confirm(`Pin „${p.name}“ löschen?`)) return;
+        settings.pins = settings.pins.filter(x => x.id !== p.id);
+        save(); map.closePopup(); renderPins();
+      };
+      return el;
+    }, { offset:[0,-6] });
+    m.pin = p;
+    m.addTo(pinLayer);
+  }
+  updatePinValues();
+}
+function updatePinValues() {
+  pinLayer.eachLayer(m => m.setTooltipContent(`${esc(m.pin.name)} · ${mm(valueAt(m.pin.lat, m.pin.lng))}`));
+  if (locMarker) locMarker.setTooltipContent(`Standort · ${mm(valueAt(locMarker.getLatLng().lat, locMarker.getLatLng().lng))}`);
+}
+
+// Einfaches Tippen/Klicken: Wert anzeigen (verzögert, damit ein Doppeltippen/-klicken keinen Pin setzt)
 map.on('click', e => {
-  if (pin) { map.removeLayer(pin); pin = null; return; }
-  pin = L.circleMarker(e.latlng, { radius:5, color:'#111', weight:2, fillColor:'#fff', fillOpacity:1 })
-    .bindTooltip('', { permanent:true, direction:'top', offset:[0,-6], className:'pin-label' }).addTo(map);
-  updatePin();
+  if (performance.now() < suppressClickUntil) return;
+  if (tempPin) { removeTempPin(); return; }
+  clearTimeout(tapTimer);
+  tapTimer = setTimeout(() => openTempPin(e.latlng), 280);
 });
+map.on('dblclick', () => clearTimeout(tapTimer));
+
+// ---- Touch: Doppeltippen = hineinzoomen, Doppeltippen + Halten + Ziehen = stufenlos zoomen ----
+if (touch) {
+  const el = map.getContainer();
+  let last = { t: 0, x: 0, y: 0 }, g = null;
+  const inMap = e => el.contains(e.target) && !e.target.closest('.leaflet-control, .leaflet-popup, .leaflet-marker-icon');
+  addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) { g = null; return; }  // Zwei Finger: normales Pinch-Zoom
+    if (!inMap(e)) return;
+    const t = e.touches[0], now = performance.now();
+    if (now - last.t < 320 && Math.hypot(t.clientX - last.x, t.clientY - last.y) < 40) {
+      clearTimeout(tapTimer);
+      const r = el.getBoundingClientRect();
+      g = { y: t.clientY, z: map.getZoom(), pt: L.point(t.clientX - r.left, t.clientY - r.top), moved: false };
+      last.t = 0;
+      e.preventDefault(); e.stopPropagation();
+    } else {
+      last = { t: now, x: t.clientX, y: t.clientY };
+    }
+  }, { capture: true, passive: false });
+  addEventListener('touchmove', e => {
+    if (!g) return;
+    const dy = e.touches[0].clientY - g.y;
+    if (Math.abs(dy) > 8) g.moved = true;
+    if (g.moved) {
+      const z = Math.min(Math.max(g.z + dy / 90, map.getMinZoom()), map.getMaxZoom());
+      map.setZoomAround(g.pt, z, { animate: false });
+    }
+    e.preventDefault(); e.stopPropagation();
+  }, { capture: true, passive: false });
+  const end = e => {
+    if (!g) return;
+    if (!g.moved) map.setZoomAround(g.pt, Math.min(g.z + 1, map.getMaxZoom()));
+    g = null;
+    suppressClickUntil = performance.now() + 450;
+    e.preventDefault(); e.stopPropagation();
+  };
+  addEventListener('touchend', end, { capture: true, passive: false });
+  addEventListener('touchcancel', end, { capture: true, passive: false });
+}
+
+// ---- Standort ----
+let locMarker = null, locCircle = null;
+locBtn.onclick = () => {
+  if (!navigator.geolocation) { showToast('Standort wird vom Browser nicht unterstützt'); return; }
+  locBtn.classList.add('busy');
+  navigator.geolocation.getCurrentPosition(pos => {
+    locBtn.classList.remove('busy');
+    const ll = L.latLng(pos.coords.latitude, pos.coords.longitude);
+    if (!locMarker) {
+      locCircle = L.circle(ll, { radius: pos.coords.accuracy, color:'#1a73e8', weight:1, fillOpacity:.1, interactive:false }).addTo(map);
+      locMarker = L.circleMarker(ll, { radius:7, color:'#fff', weight:2.5, fillColor:'#1a73e8', fillOpacity:1, interactive:false })
+        .bindTooltip('', { permanent:true, direction:'top', offset:[0,-8], className:'pin-label' }).addTo(map);
+    }
+    locMarker.setLatLng(ll); locCircle.setLatLng(ll).setRadius(pos.coords.accuracy);
+    updatePinValues();
+    map.setView(ll, Math.max(map.getZoom(), 11));
+  }, err => {
+    locBtn.classList.remove('busy');
+    showToast(err.code === 1 ? 'Standortzugriff wurde nicht erlaubt' : 'Standort nicht verfügbar');
+  }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
+};
 
 // ---- Daten laden ----
 const slider = document.getElementById('days'), out = document.getElementById('daysOut');
@@ -270,7 +466,7 @@ const info = document.getElementById('info');
 let reqId = 0;
 
 function showDays(d) {
-  out.textContent = d + (d === 1 ? ' Tag' : ' Tage');
+  out.textContent = daysText(d);
   document.querySelectorAll('button[data-days]').forEach(b => b.classList.toggle('on', +b.dataset.days === d));
 }
 
@@ -312,23 +508,32 @@ async function load() {
   map.invalidateSize();
   setScale(scaleFor(d));
   radar.redraw();
-  updatePin();
+  updatePinValues();
+  if (tempPin) { const ll = tempPin.getLatLng(); removeTempPin(); openTempPin(ll); }
   const fmt = t => t.toLocaleString('de-DE', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
-  info.innerHTML = `${fmt(start)} – ${fmt(end)} Uhr` +
-    (missing ? ` · <b>${missing} Tag(e) fehlen</b>` : '') +
-    `<br>Untrasried: <b>${mm(valueAt(...places.Untrasried))}</b>`;
+  info.innerHTML = `${fmt(start)} – ${fmt(end)} Uhr` + (missing ? ` · <b>${missing} Tag(e) fehlen</b>` : '');
 }
 
+function setDays(d) {
+  slider.value = d; showDays(d);
+  settings.days = d; save();
+}
 let debounce;
-slider.oninput = () => { showDays(+slider.value); clearTimeout(debounce); debounce = setTimeout(load, 150); };
-document.querySelectorAll('button[data-days]').forEach(b => b.onclick = () => {
-  slider.value = b.dataset.days; showDays(+b.dataset.days); load();
-});
-document.getElementById('opacity').oninput = e => radar.setOpacity(+e.target.value);
+slider.oninput = () => { setDays(+slider.value); clearTimeout(debounce); debounce = setTimeout(load, 150); };
+document.querySelectorAll('button[data-days]').forEach(b => b.onclick = () => { setDays(+b.dataset.days); load(); });
+const opacity = document.getElementById('opacity');
+opacity.value = settings.opacity;
+opacity.oninput = () => { radar.setOpacity(+opacity.value); settings.opacity = +opacity.value; save(); };
 
-const legend = document.getElementById('legend'), toast = document.getElementById('toast');
+// ---- Legende, Skalenwechsel, Hinweise ----
+const toast = document.getElementById('toast');
 const num = t => String(t).replace('.', ',');
 let toastTimer;
+function showToast(text) {
+  toast.textContent = text;
+  toast.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+}
 function setScale(key) {
   if (key === scaleKey) return;
   const first = scaleKey === null;
@@ -340,25 +545,25 @@ function setScale(key) {
     `<div class="title">Niederschlag (mm) · Skala für ${sc.range}</div>` +
     '<div class="bar">' + sc.steps.map(([t, c]) => `<i style="background:${c}" title="ab ${num(t)} mm"></i>`).join('') + '</div>' +
     '<div class="ticks">' + sc.steps.map(([t]) => `<span>${num(t)}</span>`).join('') + '</div>';
-  if (first) return;
-  toast.textContent = 'Farbskala wechselt bei 7 Tagen';
-  toast.classList.add('show');
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+  if (!first) showToast('Farbskala wechselt bei 7 Tagen');
 }
-setScale(scaleFor(+slider.value));
 
-// Info-Dialog
+// ---- Info-Fenster: beim ersten Besuch, dann höchstens wöchentlich oder nach einem Update ----
 const about = document.getElementById('about');
 document.getElementById('infoBtn').onclick = () => about.showModal();
 about.addEventListener('click', e => { if (e.target === about) about.close(); });
+about.addEventListener('close', () => { settings.infoSeen = Date.now(); settings.infoVersion = INFO_VERSION; save(); });
 document.getElementById('legalLinks').innerHTML = [
   IMPRESSUM_URL && `<a href="${IMPRESSUM_URL}" target="_blank" rel="noopener">Impressum</a>`,
   DATENSCHUTZ_URL && `<a href="${DATENSCHUTZ_URL}" target="_blank" rel="noopener">Datenschutz</a>`
 ].filter(Boolean).join(' · ');
 
-showDays(+slider.value);
+// ---- Start ----
+setDays(settings.days);
+setScale(scaleFor(settings.days));
+renderPins();
 load();
-about.showModal();  // Hinweis bei jedem Öffnen der Seite anzeigen
+if (settings.infoVersion !== INFO_VERSION || Date.now() - settings.infoSeen > INFO_INTERVAL) about.showModal();
 </script>
 </body>
 </html>

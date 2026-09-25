@@ -5,6 +5,11 @@ Interaktive Karte der Niederschlagssummen über 1–30 Tage für das gesamte DWD
 - `build.py` lädt die letzten 30 RADOLAN-SF-Dateien (24-h-Summen) vom DWD und schreibt
   vorberechnete Summen nach `site/data/` (`sum_01.bin.gz` … `sum_30.bin.gz`, `meta.json`).
 - `site/index.html` ist eine statische Seite (Leaflet), die nur die gewählte Summe lädt.
+- `site/places.json` enthält alle deutschen Gemeinden mit Einwohnerzahl (für die Orts-Etiketten);
+  erzeugt mit `python3 tools/make_places.py` aus dem Gemeindeverzeichnis von Destatis.
+- Einstellungen (Dauer, Deckkraft, Kartenausschnitt, eigene Pins) speichert die Seite im `localStorage`
+  des Browsers unter `niederschlagssummen`. Wird `INFO_VERSION` in `index.html` erhöht, erscheint das
+  Info-Fenster bei allen Nutzern erneut.
 - `.github/workflows/update.yml` führt `build.py` täglich aus und veröffentlicht `site/` auf GitHub Pages.
 
 ## Lokal testen
@@ -31,4 +36,5 @@ setzt diese Frist bei jedem Lauf selbst zurück.
 Laufzeit pro Tag ca. 1 Minute; für öffentliche Repos sind Actions-Minuten kostenlos.
 
 Quelle der Radardaten: Deutscher Wetterdienst (DWD), RADOLAN SF; Kartenhintergrund © OpenStreetMap-Mitwirkende;
+Gemeindedaten © Statistisches Bundesamt (Destatis), dl-de/by-2-0;
 Leaflet (BSD-2-Lizenz, `site/vendor/leaflet/LICENSE`).

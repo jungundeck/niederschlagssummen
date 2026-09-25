@@ -1,0 +1,58 @@
+name: Niederschlagsdaten aktualisieren
+
+on:
+  schedule:
+    - cron: "40 6 * * *"   # täglich 06:40 UTC (08:40 Uhr MESZ / 07:40 Uhr MEZ)
+  push:
+    branches: [main]
+  workflow_dispatch:        # manuell über "Run workflow" startbar
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  actions: write            # für den Keepalive-Schritt
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Summen berechnen
+        run: |
+          pip install numpy
+          python build.py
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      # GitHub deaktiviert zeitgesteuerte Workflows in öffentlichen Repos nach 60 Tagen ohne
+      # Aktivität. Erneutes Aktivieren setzt diese Frist zurück.
+      - name: Keepalive
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/update.yml/enable"
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

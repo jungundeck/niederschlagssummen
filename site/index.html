@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Niederschlag Allgäu</title>
+<link rel="stylesheet" href="vendor/leaflet/leaflet.min.css">
+<style>
+  :root { --bg:#fff; --fg:#1d2330; --muted:#667085; --line:#d9dde5; --accent:#1f5fbf; --panel:rgba(255,255,255,.94); }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#12151b; --fg:#e7eaf0; --muted:#98a2b3; --line:#2c3340; --accent:#6aa3ff; --panel:rgba(22,26,33,.94); }
+  }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--fg);
+    font:14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  #map { position:absolute; inset:0; }
+  .panel { position:absolute; z-index:1000; background:var(--panel); border:1px solid var(--line);
+    border-radius:10px; box-shadow:0 4px 18px rgba(0,0,0,.15); padding:12px 14px; }
+  #ctrl { top:12px; left:56px; width:370px; max-width:calc(100% - 90px); box-sizing:border-box; }
+  h1 { font-size:15px; margin:0 0 10px; }
+  .row { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+  button { font:inherit; border:1px solid var(--line); background:transparent; color:var(--fg);
+    padding:5px 11px; border-radius:7px; cursor:pointer; }
+  button.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button:disabled { opacity:.5; cursor:wait; }
+  .dur { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+  .dur input { flex:1; accent-color:var(--accent); }
+  .dur output { font-weight:650; font-variant-numeric:tabular-nums; min-width:62px; text-align:right; }
+  .meta { color:var(--muted); font-size:12.5px; margin-top:8px; }
+  .meta b { color:var(--fg); font-weight:600; }
+  #legend { bottom:24px; left:50%; transform:translateX(-50%); width:min(780px, calc(100% - 24px));
+    box-sizing:border-box; padding:8px 12px 6px; }
+  #legend { border-width:2px; border-color:var(--scale); transition:border-color .3s; }
+  #legend .title { font-size:12.5px; font-weight:600; margin-bottom:5px; display:flex; align-items:center; gap:8px; }
+  #toast { position:absolute; z-index:1002; top:40%; left:50%; transform:translate(-50%,-50%) scale(.96);
+    background:var(--scale); color:#fff; padding:12px 20px; border-radius:12px; font-weight:650; font-size:15px;
+    text-align:center; box-shadow:0 8px 30px rgba(0,0,0,.3); opacity:0; pointer-events:none;
+    transition:opacity .25s, transform .25s; }
+  #toast.show { opacity:1; transform:translate(-50%,-50%) scale(1); }
+
+  #legend .bar { display:flex; border:1px solid #333; }
+  #legend .bar i { flex:1; height:16px; border-right:1px solid #333; }
+  #legend .bar i:last-child { border-right:0; }
+  #legend .ticks { display:flex; font-size:10.5px; font-variant-numeric:tabular-nums; margin-top:2px; }
+  #legend .ticks span { flex:1; margin-left:-2px; }
+  label { color:var(--muted); font-size:12.5px; display:flex; align-items:center; gap:8px; margin-top:8px; }
+  label input { flex:1; accent-color:var(--accent); }
+  #hover { position:absolute; z-index:1001; pointer-events:none; display:none; background:var(--panel);
+    border:1px solid var(--line); border-radius:6px; padding:3px 7px; font-weight:600; font-size:12.5px;
+    font-variant-numeric:tabular-nums; box-shadow:0 2px 8px rgba(0,0,0,.15); }
+  .far .place-label, .far .place-dot { display:none; }
+  .busy { opacity:.55; transition:opacity .15s; }
+  #ctrl { padding-right:44px; }
+  .info-btn { position:absolute; top:9px; right:9px; width:26px; height:26px; padding:0; border-radius:50%;
+    font:italic 700 15px/1 Georgia, serif; }
+  dialog { max-width:min(520px, calc(100% - 32px)); border:1px solid var(--line); border-radius:12px;
+    background:var(--bg); color:var(--fg); padding:18px 20px; box-shadow:0 12px 40px rgba(0,0,0,.3); }
+  dialog::backdrop { background:rgba(0,0,0,.35); }
+  dialog h2 { font-size:17px; margin:0 0 8px; } dialog h3 { font-size:14px; margin:14px 0 4px; }
+  dialog p, dialog li { font-size:13.5px; } dialog ul { padding-left:18px; margin:4px 0; }
+  dialog a { color:var(--accent); }
+  dialog .close { position:absolute; top:8px; right:10px; border:0; font-size:22px; padding:2px 8px; }
+  dialog .ok { text-align:right; margin-top:12px; }
+  dialog .ok button { padding:7px 18px; }
+  dialog .legal { margin-top:14px; padding-top:10px; border-top:1px solid var(--line); }
+  button, input { touch-action:manipulation; }
+  .pin-label { font-weight:650; font-variant-numeric:tabular-nums; }
+  @media (max-width: 600px) {
+    #ctrl { left:max(10px, env(safe-area-inset-left)); right:max(10px, env(safe-area-inset-right));
+      top:max(10px, env(safe-area-inset-top)); width:auto; max-width:none; padding:10px 12px; }
+    h1 { display:none; }
+    .dur { margin-right:30px; }
+    .info-btn { top:12px; }
+    .row { flex-wrap:nowrap; }
+    .row button { flex:1; padding:8px 0; }
+    .dur input { height:28px; }
+    .meta { margin-top:6px; }
+    #legend { bottom:max(22px, calc(env(safe-area-inset-bottom) + 18px)); padding:6px 8px 4px; }
+    #legend .title { font-size:11.5px; }
+    #legend .ticks { font-size:9.5px; }
+    #legend .ticks span:nth-child(even) { visibility:hidden; }
+    #hover { display:none !important; }
+  }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="hover"></div>
+<div id="toast"></div>
+
+<div id="ctrl" class="panel">
+  <h1>Niederschlagssumme · RADOLAN 1 km</h1>
+  <button id="infoBtn" class="info-btn" aria-label="Info, Quellen und rechtliche Hinweise" title="Info &amp; Quellen">i</button>
+  <div class="dur">
+    <input type="range" id="days" min="1" max="30" step="1" value="7" aria-label="Summendauer in Tagen">
+    <output id="daysOut">7 Tage</output>
+  </div>
+  <div class="row">
+    <button data-days="1">1</button>
+    <button data-days="3">3</button>
+    <button data-days="7" class="on">7</button>
+    <button data-days="14">14</button>
+    <button data-days="30">30</button>
+  </div>
+  <div class="meta" id="info">Lade …</div>
+  <label>Deckkraft <input type="range" id="opacity" min="0.2" max="1" step="0.05" value="0.7"></label>
+</div>
+
+<div id="legend" class="panel"></div>
+
+<dialog id="about">
+  <form method="dialog"><button class="close" aria-label="Schließen">×</button></form>
+  <h2>Über diese Karte</h2>
+  <p>Es handelt sich bei dieser Karte um eine experimentelle Aufbereitung der Niederschlagsdaten vom DWD.
+    Sie dient nur zu Hobbyzwecken, Fehler können nicht ausgeschlossen werden, eine Haftung für Fehler
+    kann keinesfalls übernommen werden.</p>
+  <p>Die Daten werden einmal täglich aktualisiert. Es handelt sich um radargestützte, an Bodenstationen
+    angeeichte 24-Stunden-Summen in einem 1-km-Raster (DWD RADOLAN SF).</p>
+  <h3>Hinweis</h3>
+  <p>Radargestützte Schätzwerte ohne Gewähr. Keine amtliche Messung und kein Angebot des
+    Deutschen Wetterdienstes. Lokal können die Werte deutlich von Messungen am Boden abweichen.
+    Nicht für sicherheitsrelevante Entscheidungen verwenden.</p>
+  <h3>Quellen</h3>
+  <ul>
+    <li>Datenbasis: <a href="https://opendata.dwd.de" target="_blank" rel="noopener">Deutscher Wetterdienst</a>,
+      RADOLAN SF; Daten aufsummiert und grafisch aufbereitet.</li>
+    <li>Kartenhintergrund: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap-Mitwirkende</a>,
+      Kacheln von <a href="https://www.openstreetmap.de" target="_blank" rel="noopener">openstreetmap.de</a> (FOSSGIS e.V.)</li>
+    <li>Kartenbibliothek: <a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a> (BSD-2-Lizenz)</li>
+  </ul>
+  <p class="legal" id="legalLinks"></p>
+  <form method="dialog" class="ok"><button class="on">Verstanden</button></form>
+</dialog>
+
+<script src="vendor/leaflet/leaflet.min.js"></script>
+<script>
+// ---- Rechtliche Links (Impressum/Datenschutz der eigenen Homepage eintragen) ----
+const IMPRESSUM_URL = '';   // z. B. 'https://www.deinedomain.de/impressum'
+const DATENSCHUTZ_URL = ''; // z. B. 'https://www.deinedomain.de/datenschutz'
+
+// ---- RADOLAN-Gitter (900x900, polarstereographisch, 1 km) ----
+const N = 900, NODATA = 0xFFFF;
+const RE = 6370.04, S60 = Math.sin(Math.PI / 3), X0 = -523.4622, Y0 = -4658.6447;
+const D2R = Math.PI / 180;
+
+function cellIndex(lat, lon) {
+  const p = lat * D2R, m = (1 + S60) / (1 + Math.sin(p)), l = (lon - 10) * D2R;
+  const x = RE * m * Math.cos(p) * Math.sin(l), y = -RE * m * Math.cos(p) * Math.cos(l);
+  const c = Math.floor(x - X0), r = Math.floor(y - Y0);
+  return (c < 0 || c >= N || r < 0 || r >= N) ? -1 : r * N + c;
+}
+
+// ---- Farbskalen (mm) ----
+// Langzeit (8–30 Tage): vorgegebene Skala. Kurzzeit (1–7 Tage): feinere Stufen, eigene Farbfamilie.
+const SCALES = {
+  long: {
+    name: 'Langzeit-Skala', range: '8–30 Tage', accent: '#d9531e',
+    steps: [
+      [1,'#4daaf9'],[2,'#1539f5'],[4,'#0000e5'],[6,'#0000bf'],[8,'#cbfdc3'],[12,'#b1fda2'],
+      [16,'#94fc7d'],[20,'#7ffc5e'],[28,'#63d840'],[40,'#ffff54'],[60,'#ecd948'],[80,'#e2bc3f'],
+      [100,'#eca038'],[120,'#ed722e'],[140,'#ea4125'],[160,'#d62e20'],[180,'#a12015'],[200,'#f5c7fa'],
+      [240,'#e1ade7'],[280,'#d196d7'],[360,'#ac63b4'],[440,'#883290'],[520,'#f2f2f2'],[600,'#afafaf'],
+      [1000,'#6c6c6c'],[1600,'#080808']
+    ]
+  },
+  short: {
+    name: 'Kurzzeit-Skala', range: '1–7 Tage', accent: '#0e8f8a',
+    steps: [
+      [0.1,'#f0f9e8'],[0.5,'#d4eece'],[1,'#b5e2c1'],[2,'#8fd2c4'],[3,'#66c0c8'],[4,'#43a8c8'],
+      [5,'#2b8cbe'],[7,'#1f6aa8'],[10,'#1a4a8f'],[15,'#2d2a7a'],[20,'#4b1d78'],[25,'#6d1873'],
+      [30,'#8f1a6b'],[40,'#b0235e'],[50,'#cc3a4d'],[70,'#e0603a'],[100,'#ee8b2b'],[150,'#f7c21f']
+    ]
+  }
+};
+const scaleFor = days => days <= 7 ? 'short' : 'long';
+
+// Lookup-Tabellen: Wert in 0,1 mm → RGBA
+const rgba = h => { const n = parseInt(h.slice(1), 16);
+  return (255 << 24 | (n & 255) << 16 | (n >> 8 & 255) << 8 | n >> 16) >>> 0; };  // little-endian ABGR
+for (const sc of Object.values(SCALES)) {
+  sc.lut = new Uint32Array(NODATA + 1);
+  let s = -1;
+  for (let v = 0; v < NODATA; v++) {
+    while (s + 1 < sc.steps.length && v >= Math.round(sc.steps[s + 1][0] * 10)) s++;
+    sc.lut[v] = s < 0 ? 0 : rgba(sc.steps[s][1]);
+  }
+}
+let LUT = SCALES.long.lut, scaleKey = null;
+
+// ---- Karte ----
+const touch = matchMedia('(pointer: coarse)').matches;
+const map = L.map('map', { zoomSnap: 0.5, zoomControl: !touch }).setView([47.86, 10.3], 10);
+L.tileLayer('https://{s}.tile.openstreetmap.de/{z}/{x}/{y}.png', {
+  maxZoom: 17,
+  attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap-Mitwirkende</a>' +
+               ' · Datenbasis: <a href="https://opendata.dwd.de" target="_blank" rel="noopener">Deutscher Wetterdienst</a>'
+}).addTo(map);
+
+let grid = null;
+
+// Overlay: jede Kachel wird pixelweise aus dem RADOLAN-Gitter gezeichnet
+const RadarLayer = L.GridLayer.extend({
+  createTile(coords) {
+    const tile = document.createElement('canvas');
+    const size = this.getTileSize();
+    tile.width = size.x; tile.height = size.y;
+    if (!grid) return tile;
+    const ctx = tile.getContext('2d');
+    const img = ctx.createImageData(size.x, size.y);
+    const px = new Uint32Array(img.data.buffer);
+    const world = size.x * Math.pow(2, coords.z);
+    const lons = new Float64Array(size.x);
+    for (let i = 0; i < size.x; i++) lons[i] = ((coords.x * size.x + i + 0.5) / world) * 360 - 180;
+    let any = false;
+    for (let j = 0; j < size.y; j++) {
+      const n = Math.PI - 2 * Math.PI * (coords.y * size.y + j + 0.5) / world;
+      const lat = Math.atan(Math.sinh(n)) / D2R;
+      for (let i = 0; i < size.x; i++) {
+        const k = cellIndex(lat, lons[i]);
+        if (k >= 0) { const c = LUT[grid[k]]; if (c) { px[j * size.x + i] = c; any = true; } }
+      }
+    }
+    if (any) ctx.putImageData(img, 0, 0);
+    return tile;
+  }
+});
+const radar = new RadarLayer({ opacity: 0.7, zIndex: 5, updateWhenZooming: false }).addTo(map);
+
+// Orte
+const places = { Memmingen:[47.9816,10.1687], Kempten:[47.7267,10.3169], Untrasried:[47.8282,10.3792],
+                 Kaufbeuren:[47.8804,10.6222], 'Bad Grönenbach':[47.8777,10.2215] };
+for (const [n, ll] of Object.entries(places)) {
+  L.circleMarker(ll, { radius:4, color:'#111', weight:1.5, fillColor:'#fff', fillOpacity:1, className:'place-dot' })
+    .bindTooltip(n, { permanent:true, direction:'right', offset:[6,0], className:'place-label' }).addTo(map);
+}
+// Ortsnamen erst ab regionaler Zoomstufe zeigen
+const toggleLabels = () => map.getContainer().classList.toggle('far', map.getZoom() < 9);
+map.on('zoomend', toggleLabels); toggleLabels();
+
+const mm = v => v == null ? '–' : (v / 10).toFixed(1).replace('.', ',') + ' mm';
+const valueAt = (lat, lon) => { const k = cellIndex(lat, lon); return (k < 0 || !grid || grid[k] === NODATA) ? null : grid[k]; };
+
+// Mauszeiger-Wert
+const hover = document.getElementById('hover');
+map.on('mousemove', e => {
+  if (!grid) return;
+  hover.textContent = mm(valueAt(e.latlng.lat, e.latlng.lng));
+  hover.style.left = (e.containerPoint.x + 14) + 'px';
+  hover.style.top = (e.containerPoint.y + 14) + 'px';
+  hover.style.display = 'block';
+});
+map.on('mouseout', () => hover.style.display = 'none');
+
+// Antippen (Handy) bzw. Klicken: Wert an dieser Stelle anheften, erneutes Antippen entfernt ihn
+let pin = null;
+function updatePin() {
+  if (!pin) return;
+  const ll = pin.getLatLng();
+  pin.setTooltipContent(mm(valueAt(ll.lat, ll.lng)));
+}
+map.on('click', e => {
+  if (pin) { map.removeLayer(pin); pin = null; return; }
+  pin = L.circleMarker(e.latlng, { radius:5, color:'#111', weight:2, fillColor:'#fff', fillOpacity:1 })
+    .bindTooltip('', { permanent:true, direction:'top', offset:[0,-6], className:'pin-label' }).addTo(map);
+  updatePin();
+});
+
+// ---- Daten laden ----
+const slider = document.getElementById('days'), out = document.getElementById('daysOut');
+const info = document.getElementById('info');
+let reqId = 0;
+
+function showDays(d) {
+  out.textContent = d + (d === 1 ? ' Tag' : ' Tage');
+  document.querySelectorAll('button[data-days]').forEach(b => b.classList.toggle('on', +b.dataset.days === d));
+}
+
+let dataInfo = null;
+const cache = new Map();
+
+async function fetchSum(d) {
+  if (cache.has(d)) return cache.get(d);
+  const res = await fetch(`data/sum_${String(d).padStart(2, '0')}.bin.gz?v=${encodeURIComponent(dataInfo.built)}`);
+  if (!res.ok) throw new Error(`Daten für ${d} Tage fehlen (${res.status})`);
+  let buf = new Uint8Array(await res.arrayBuffer());
+  if (buf[0] === 0x1f && buf[1] === 0x8b) {  // noch gzip-komprimiert (manche Server entpacken selbst)
+    buf = new Uint8Array(await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer());
+  }
+  const arr = new Uint16Array(buf.buffer, buf.byteOffset, buf.byteLength / 2);
+  cache.set(d, arr);
+  return arr;
+}
+
+async function load() {
+  const d = +slider.value, id = ++reqId;
+  info.classList.add('busy');
+  try {
+    if (!dataInfo) {
+      dataInfo = await (await fetch('data/meta.json', { cache: 'no-store' })).json();
+      slider.max = dataInfo.max_days;
+    }
+    const arr = await fetchSum(d);
+    if (id !== reqId) return;  // veraltete Antwort
+    grid = arr;
+  } catch (e) {
+    info.classList.remove('busy');
+    info.textContent = 'Fehler beim Laden: ' + e.message;
+    return;
+  }
+  info.classList.remove('busy');
+  const end = new Date(dataInfo.end), start = new Date(end - d * 86400000);
+  const missing = dataInfo.missing_days.filter(m => m <= d).length;
+  map.invalidateSize();
+  setScale(scaleFor(d));
+  radar.redraw();
+  updatePin();
+  const fmt = t => t.toLocaleString('de-DE', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+  info.innerHTML = `${fmt(start)} – ${fmt(end)} Uhr` +
+    (missing ? ` · <b>${missing} Tag(e) fehlen</b>` : '') +
+    `<br>Untrasried: <b>${mm(valueAt(...places.Untrasried))}</b>`;
+}
+
+let debounce;
+slider.oninput = () => { showDays(+slider.value); clearTimeout(debounce); debounce = setTimeout(load, 150); };
+document.querySelectorAll('button[data-days]').forEach(b => b.onclick = () => {
+  slider.value = b.dataset.days; showDays(+b.dataset.days); load();
+});
+document.getElementById('opacity').oninput = e => radar.setOpacity(+e.target.value);
+
+const legend = document.getElementById('legend'), toast = document.getElementById('toast');
+const num = t => String(t).replace('.', ',');
+let toastTimer;
+function setScale(key) {
+  if (key === scaleKey) return;
+  const first = scaleKey === null;
+  scaleKey = key;
+  const sc = SCALES[key];
+  LUT = sc.lut;
+  document.documentElement.style.setProperty('--scale', sc.accent);
+  legend.innerHTML =
+    `<div class="title">Niederschlag (mm) · Skala für ${sc.range}</div>` +
+    '<div class="bar">' + sc.steps.map(([t, c]) => `<i style="background:${c}" title="ab ${num(t)} mm"></i>`).join('') + '</div>' +
+    '<div class="ticks">' + sc.steps.map(([t]) => `<span>${num(t)}</span>`).join('') + '</div>';
+  if (first) return;
+  toast.textContent = 'Farbskala wechselt bei 7 Tagen';
+  toast.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+}
+setScale(scaleFor(+slider.value));
+
+// Info-Dialog
+const about = document.getElementById('about');
+document.getElementById('infoBtn').onclick = () => about.showModal();
+about.addEventListener('click', e => { if (e.target === about) about.close(); });
+document.getElementById('legalLinks').innerHTML = [
+  IMPRESSUM_URL && `<a href="${IMPRESSUM_URL}" target="_blank" rel="noopener">Impressum</a>`,
+  DATENSCHUTZ_URL && `<a href="${DATENSCHUTZ_URL}" target="_blank" rel="noopener">Datenschutz</a>`
+].filter(Boolean).join(' · ');
+
+showDays(+slider.value);
+load();
+about.showModal();  // Hinweis bei jedem Öffnen der Seite anzeigen
+</script>
+</body>
+</html>

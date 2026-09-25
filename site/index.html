@@ -134,23 +134,42 @@
 <dialog id="about">
   <form method="dialog"><button class="close" aria-label="Schließen">×</button></form>
   <h2>Über diese Karte</h2>
-  <p>Es handelt sich bei dieser Karte um eine experimentelle Aufbereitung der Niederschlagsdaten vom DWD.
+  <p>Es handelt sich bei dieser Karte um eine experimentelle Aufbereitung der offen zugänglichen
+    Niederschlagsdaten vom DWD, die als interaktives Overlay auf einer OpenStreetMap-Karte angezeigt werden.
     Sie dient nur zu Hobbyzwecken, Fehler können nicht ausgeschlossen werden, eine Haftung für Fehler
-    kann keinesfalls übernommen werden.</p>
+    kann keinesfalls übernommen werden. Eine kommerzielle Nutzung dieser Aufbereitung ist nicht gestattet.</p>
   <p>Die Daten werden einmal täglich aktualisiert. Es handelt sich um radargestützte, an Bodenstationen
     angeeichte 24-Stunden-Summen in einem 1-km-Raster (DWD RADOLAN SF).</p>
-  <h3>Hinweis</h3>
-  <p>Radargestützte Schätzwerte ohne Gewähr. Keine amtliche Messung und kein Angebot des
-    Deutschen Wetterdienstes. Lokal können die Werte deutlich von Messungen am Boden abweichen.
-    Nicht für sicherheitsrelevante Entscheidungen verwenden.</p>
+  <p>Möglich ist dieses Hobbyprojekt nur, weil andere ihre Arbeit frei zur Verfügung stellen: der Deutsche
+    Wetterdienst seine Radardaten, die OpenStreetMap-Gemeinschaft ihre Karte, das Statistische Bundesamt sein
+    Gemeindeverzeichnis und die Entwickler von Leaflet ihre Kartensoftware. Ein schönes Beispiel dafür, was
+    Open Data und Open Source möglich machen – herzlichen Dank! Alle Quellen sind unten aufgeführt.</p>
   <h3>Bedienung</h3>
   <ul>
     <li>Antippen der Karte zeigt den Wert an dieser Stelle; der Punkt lässt sich als eigener Pin speichern.</li>
     <li>Doppeltippen zoomt hinein, Doppeltippen und Halten mit anschließendem Ziehen zoomt stufenlos.</li>
     <li>Der Standort-Knopf zentriert die Karte auf deinen Standort.</li>
   </ul>
-  <p>Einstellungen und eigene Pins werden nur lokal in deinem Browser gespeichert. Dein Standort
-    wird nicht übertragen.</p>
+  <h3>Neuerungen (25.09.2026)</h3>
+  <ul>
+    <li>Die fünf größten Orte im Kartenausschnitt werden beschriftet.</li>
+    <li>Eigene Pins lassen sich benennen und speichern.</li>
+    <li>Standort-Knopf mit Anzeige des Werts am eigenen Standort.</li>
+    <li>Zoomen per Doppeltippen und Doppeltippen mit Ziehen.</li>
+    <li>Zeitraum, Kartenausschnitt und Deckkraft bleiben gespeichert.</li>
+  </ul>
+  <h3>Datenschutz</h3>
+  <p>Einstellungen (Zeitraum, Kartenausschnitt, Deckkraft) und eigene Pins werden nur lokal in deinem
+    Browser gespeichert und sind für mich nicht einsehbar. Du kannst sie jederzeit löschen, indem du die
+    Websitedaten dieser Seite in deinem Browser entfernst. Dein Standort wird nur in deinem Browser
+    verwendet und weder gespeichert noch übermittelt.</p>
+  <p>Die Seite wird über GitHub Pages bereitgestellt, die Kartenkacheln kommen von openstreetmap.de
+    (FOSSGIS e.V.). Wie bei jedem Webseitenaufruf verarbeiten diese Anbieter dabei technisch bedingt
+    deine IP-Adresse.</p>
+  <h3>Haftungsausschluss</h3>
+  <p>Radargestützte Schätzwerte ohne Gewähr. Keine amtliche Messung und kein Angebot des
+    Deutschen Wetterdienstes. Lokal können die Werte deutlich von Messungen am Boden abweichen.
+    Nicht für sicherheitsrelevante Entscheidungen verwenden.</p>
   <h3>Quellen</h3>
   <ul>
     <li>Datenbasis: <a href="https://opendata.dwd.de" target="_blank" rel="noopener">Deutscher Wetterdienst</a>,
@@ -172,7 +191,7 @@ const IMPRESSUM_URL = '';   // z. B. 'https://www.deinedomain.de/impressum'
 const DATENSCHUTZ_URL = ''; // z. B. 'https://www.deinedomain.de/datenschutz'
 
 // Bei inhaltlichen Änderungen der Seite erhöhen → Info-Fenster erscheint erneut
-const INFO_VERSION = 2;
+const INFO_VERSION = 3;
 const INFO_INTERVAL = 7 * 86400000;  // sonst höchstens einmal pro Woche
 const HOME = { lat: 47.8282, lng: 10.3792, zoom: 10 };  // Startansicht beim ersten Besuch: Untrasried
 

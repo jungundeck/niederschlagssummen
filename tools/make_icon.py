@@ -1,0 +1,150 @@
+#!/usr/bin/env python3
+"""Erzeugt das App-Icon: stilisierte Karte, Radar-Kacheln in der Kurzzeit-Farbskala, wachsender Steinpilz.
+
+    python3 tools/make_icon.py
+
+Schreibt site/icon.svg und rendert daraus (per Chrome headless + Pillow) die PNG-Größen:
+apple-touch-icon.png (180), icon-192.png, icon-512.png, icon-maskable-512.png.
+"""
+import math
+import random
+import subprocess
+import tempfile
+from pathlib import Path
+
+from PIL import Image
+
+SITE = Path(__file__).resolve().parent.parent / "site"
+CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+
+# Kurzzeit-Farbskala der Karte (Auswahl)
+SCALE = ["#d4eece", "#b5e2c1", "#8fd2c4", "#66c0c8", "#43a8c8", "#2b8cbe", "#1f6aa8", "#2d2a7a", "#4b1d78"]
+
+
+def radar_tiles(size=512, tile=32):
+    """Kacheln eines 'Regengebiets' oben rechts, mit ausgefranstem Rand."""
+    rnd = random.Random(7)
+    out = []
+    cx, cy = 440, 50
+    for ty in range(size // tile):
+        for tx in range(size // tile):
+            x, y = tx * tile + tile / 2, ty * tile + tile / 2
+            d = math.hypot((x - cx) * 0.9, (y - cy) * 1.25)
+            v = 1 - d / 300 + rnd.uniform(-0.12, 0.12)
+            if v <= 0.08:
+                continue
+            c = SCALE[min(int(v * len(SCALE) * 1.15), len(SCALE) - 1)]
+            out.append(f'<rect x="{tx * tile + 1}" y="{ty * tile + 1}" width="{tile - 2}" height="{tile - 2}" '
+                       f'rx="3" fill="{c}"/>')
+    return "\n    ".join(out)
+
+
+def svg():
+    return f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="cap" cx="0.38" cy="0.3" r="0.8">
+      <stop offset="0" stop-color="#b8743f"/>
+      <stop offset="0.55" stop-color="#8a4a22"/>
+      <stop offset="1" stop-color="#5c2c12"/>
+    </radialGradient>
+    <linearGradient id="stem" x1="0" x2="1">
+      <stop offset="0" stop-color="#fbf5e6"/>
+      <stop offset="0.6" stop-color="#eee3c8"/>
+      <stop offset="1" stop-color="#cdbb93"/>
+    </linearGradient>
+    <pattern id="net" width="14" height="10" patternUnits="userSpaceOnUse">
+      <path d="M0 5 L7 0 L14 5 L7 10 Z" fill="none" stroke="#c4ad7f" stroke-width="1.4"/>
+    </pattern>
+    <linearGradient id="netfade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="1"/>
+      <stop offset="0.7" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <mask id="netmask"><rect x="0" y="0" width="512" height="512" fill="url(#netfade)"/></mask>
+    <clipPath id="stemclip">
+      <path d="M222 292 C218 330 196 352 194 392 C192 420 222 436 256 436 C290 436 320 420 318 392
+               C316 352 294 330 290 292 Z"/>
+    </clipPath>
+  </defs>
+
+  <!-- Karte -->
+  <rect width="512" height="512" fill="#efe9da"/>
+  <path d="M-10 120 C60 90 110 150 60 210 C20 260 70 300 20 360 L-10 380 Z" fill="#cfe2b3"/>
+  <path d="M380 330 C440 300 520 330 520 330 L520 520 L330 520 C360 470 330 380 380 330 Z" fill="#cfe2b3"/>
+  <path d="M180 -10 C170 40 230 60 220 110 L150 110 C140 60 120 20 130 -10 Z" fill="#dbe8c4"/>
+  <path d="M-20 450 C80 400 140 470 230 440 S380 380 530 420" fill="none" stroke="#8ec5e8" stroke-width="22"
+        stroke-linecap="round"/>
+  <path d="M40 -20 C90 120 60 260 150 330 S330 380 360 530" fill="none" stroke="#e8b24a" stroke-width="15"/>
+  <path d="M40 -20 C90 120 60 260 150 330 S330 380 360 530" fill="none" stroke="#fff6df" stroke-width="8"/>
+  <path d="M-20 250 C120 240 300 220 530 150" fill="none" stroke="#fff" stroke-width="9"/>
+  <path d="M300 -20 C290 80 330 150 300 230" fill="none" stroke="#fff" stroke-width="7"/>
+
+  <!-- Radar-Kacheln -->
+  <g opacity="0.78">
+    {radar_tiles()}
+  </g>
+
+  <!-- Erdhügel (hinterer Teil) -->
+  <ellipse cx="256" cy="462" rx="176" ry="22" fill="#000" opacity="0.12"/>
+  <path d="M92 458 C130 410 196 392 256 392 C316 392 382 410 420 458 C372 476 140 476 92 458 Z" fill="#6b4a2b"/>
+  <path d="M92 458 C112 436 140 426 160 430 C146 440 130 452 124 458 Z" fill="#6f9a3a"/>
+  <path d="M420 458 C400 436 372 426 352 430 C366 440 382 452 388 458 Z" fill="#6f9a3a"/>
+  <!-- aufgeworfene Krümel -->
+  <circle cx="170" cy="382" r="7" fill="#6b4a2b"/><circle cx="150" cy="362" r="4.5" fill="#6b4a2b"/>
+  <circle cx="186" cy="360" r="4" fill="#86603a"/>
+  <circle cx="344" cy="380" r="7" fill="#6b4a2b"/><circle cx="364" cy="360" r="4.5" fill="#6b4a2b"/>
+  <circle cx="328" cy="358" r="4" fill="#86603a"/>
+
+  <!-- Stiel (bauchig, mit Netzzeichnung) -->
+  <path d="M222 292 C218 330 196 352 194 392 C192 420 222 436 256 436 C290 436 320 420 318 392
+           C316 352 294 330 290 292 Z" fill="url(#stem)" stroke="#8c7550" stroke-width="3"/>
+  <g clip-path="url(#stemclip)" mask="url(#netmask)">
+    <rect x="190" y="288" width="132" height="150" fill="url(#net)"/>
+  </g>
+
+  <!-- Erdrand vor dem Stielfuß: der Pilz bricht durch -->
+  <path d="M150 458 C170 420 214 408 256 410 C298 408 342 420 362 458 C320 470 192 470 150 458 Z" fill="#86603a"/>
+  <path d="M186 426 L204 436 L198 448 M318 424 L304 438 L312 450 M244 418 L252 432" fill="none"
+        stroke="#5a3b20" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Hut: Unterseite (Röhren) und Oberseite -->
+  <path d="M140 276 C170 306 342 306 372 276 C340 292 172 292 140 276 Z" fill="#e2cf86" stroke="#7a5a2a" stroke-width="3"/>
+  <path d="M140 276 C128 196 186 126 256 124 C326 126 384 196 372 276 C330 296 182 296 140 276 Z"
+        fill="url(#cap)" stroke="#4a2410" stroke-width="3.5"/>
+  <path d="M146 272 C184 288 328 288 366 272" fill="none" stroke="#d9a574" stroke-width="5" stroke-linecap="round"/>
+  <ellipse cx="214" cy="170" rx="30" ry="15" fill="#fff" opacity="0.22" transform="rotate(-24 214 170)"/>
+
+  <!-- Wachstumsstriche -->
+  <g fill="none" stroke="#1f3b57" stroke-width="7" stroke-linecap="round">
+    <path d="M112 196 L92 178"/><path d="M104 244 L78 238"/><path d="M142 146 L128 120"/>
+    <path d="M400 196 L420 178"/><path d="M408 244 L434 238"/><path d="M370 146 L384 120"/>
+  </g>
+</svg>
+"""
+
+
+def render(svg_path, png_path, px):
+    html = Path(tempfile.mkdtemp()) / "icon.html"
+    html.write_text(f'<html><body style="margin:0"><img src="{svg_path.as_uri()}" width="{px}" height="{px}"></body></html>')
+    subprocess.run([CHROME, "--headless", "--disable-gpu", "--hide-scrollbars", "--force-device-scale-factor=1",
+                    f"--window-size={px},{px}", f"--screenshot={png_path}", html.as_uri()],
+                   check=True, capture_output=True)
+
+
+def main():
+    svg_path = SITE / "icon.svg"
+    svg_path.write_text(svg())
+    big = Path(tempfile.mkdtemp()) / "icon-1024.png"
+    render(svg_path, big, 1024)
+    master = Image.open(big).convert("RGB").crop((0, 0, 1024, 1024))
+    for name, px in [("apple-touch-icon.png", 180), ("icon-192.png", 192), ("icon-512.png", 512)]:
+        master.resize((px, px), Image.LANCZOS).save(SITE / name, optimize=True)
+    # Maskierbar (Android): Motiv auf 80 % verkleinert, Rand mit Kartenfarbe aufgefüllt
+    mask = Image.new("RGB", (1024, 1024), (239, 233, 218))
+    inner = master.resize((820, 820), Image.LANCZOS)
+    mask.paste(inner, (102, 102))
+    mask.resize((512, 512), Image.LANCZOS).save(SITE / "icon-maskable-512.png", optimize=True)
+    print("Icons geschrieben nach", SITE)
+
+
+if __name__ == "__main__":
+    main()

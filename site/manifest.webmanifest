@@ -1,0 +1,16 @@
+{
+  "name": "Niederschlagssumme",
+  "short_name": "Niederschlag",
+  "description": "Niederschlagssummen über 1–30 Tage aus DWD-Radardaten (RADOLAN SF, 1 km)",
+  "lang": "de",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#efe9da",
+  "theme_color": "#efe9da",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

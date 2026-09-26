@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Niederschlagssumme</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#efe9da">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Niederschlag">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.min.css">
 <style>
   :root { --bg:#fff; --fg:#1d2330; --muted:#667085; --line:#d9dde5; --accent:#1f5fbf; --panel:rgba(255,255,255,.94);
@@ -77,6 +85,7 @@
   dialog .close { position:absolute; top:8px; right:10px; border:0; font-size:22px; padding:2px 8px; }
   dialog .ok { text-align:right; margin-top:12px; }
   dialog .ok button { padding:7px 18px; }
+  dialog h3.older { color:var(--muted); }
   dialog .legal { margin-top:14px; padding-top:10px; border-top:1px solid var(--line); }
 
   @media (max-width: 600px) {
@@ -150,7 +159,13 @@
     <li>Doppeltippen zoomt hinein, Doppeltippen und Halten mit anschließendem Ziehen zoomt stufenlos.</li>
     <li>Der Standort-Knopf zentriert die Karte auf deinen Standort.</li>
   </ul>
-  <h3>Neuerungen (25.09.2026)</h3>
+  <h3>Neuerungen (26.09.2026)</h3>
+  <ul>
+    <li>Die Karte lässt sich als App auf dem Home-Bildschirm ablegen (iPhone: Teilen → „Zum Home-Bildschirm“)
+      und hat dafür ein eigenes Symbol. Dort bleiben deine Pins dauerhaft erhalten; Pins, die du vorher
+      in Safari gespeichert hast, erscheinen in der App allerdings nicht, da iOS beide getrennt speichert.</li>
+  </ul>
+  <h3 class="older">Neuerungen (25.09.2026)</h3>
   <ul>
     <li>Die fünf größten Orte im Kartenausschnitt werden beschriftet.</li>
     <li>Eigene Pins lassen sich benennen und speichern.</li>
@@ -191,7 +206,7 @@ const IMPRESSUM_URL = '';   // z. B. 'https://www.deinedomain.de/impressum'
 const DATENSCHUTZ_URL = ''; // z. B. 'https://www.deinedomain.de/datenschutz'
 
 // Bei inhaltlichen Änderungen der Seite erhöhen → Info-Fenster erscheint erneut
-const INFO_VERSION = 3;
+const INFO_VERSION = 4;
 const INFO_INTERVAL = 7 * 86400000;  // sonst höchstens einmal pro Woche
 const HOME = { lat: 47.8282, lng: 10.3792, zoom: 10 };  // Startansicht beim ersten Besuch: Untrasried
 
